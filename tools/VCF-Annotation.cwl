@@ -122,31 +122,24 @@ inputs:
   inputBinding:
     position: 3
     prefix: --gnomad
-- id: input_file
+- id: input_vcf_file
   type: File
   inputBinding:
-    prefix: --input_file
+    prefix: --input_vcf_file
     position: 3
     shellQuote: false
-- id: output_basename
-  type: string
-  inputBinding:
-    prefix: --output_basename
-    position: 4
-    shellQuote: false
-    valueFrom: $(inputs.input_file.nameroot)
 
 outputs:
-- id: vcf_output
+- id: VWB_tsv_output
   type: File
   outputBinding:
     glob: '*.VWB_annotated.tsv.gz'
-    outputEval: $(inheritMetadata(self, inputs.input_file))
+    outputEval: $(inheritMetadata(self, inputs.input_vcf_file))
 
 baseCommand:
 - python
 arguments:
 - position: 1
   valueFrom: |-
-    VCF-Annotation.py
+    VCF-Annotation.py --output_basename $(inputs.input_vcf_file.nameroot)
   shellQuote: false

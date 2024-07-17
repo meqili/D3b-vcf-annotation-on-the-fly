@@ -10,7 +10,7 @@ parser = argparse.ArgumentParser(
     formatter_class=RawTextHelpFormatter)
 
 parser.add_argument('--output_basename', required=True, help='Output basename for the annotated file')
-parser.add_argument('--input_file', required=True, help='Input file path for AR_comphet file')
+parser.add_argument('--input_vcf_file', required=True, help='Input file path for AR_comphet file')
 parser.add_argument('--clinvar', action='store_true', help='Include ClinVar data')
 parser.add_argument('--gnomad', action='store_true', help='Include GnomAD data')
 parser.add_argument('--spark_executor_mem', type=int, default=4, help='Spark executor memory in GB')
@@ -53,27 +53,28 @@ spark = glow.register(spark)
 cond = ['chromosome', 'start', 'reference', 'alternate']
 vcf_df = spark \
     .read.format('vcf') \
-    .load(args.input_file) \
+    .load(args.input_vcf_file) \
     .withColumn('chromosome', F.regexp_replace(F.col('contigName'), r'(?i)^chr[^\dXxYyMm]*', '')) \
     .withColumn('alternate', F.when(F.size(F.col('alternateAlleles')) == 1, F.col('alternateAlleles').getItem(0)).otherwise(F.lit(None))) \
     .withColumnRenamed('referenceAllele', 'reference') \
     .drop('contigName', 'referenceAllele', 'alternateAlleles')
 vcf_df = vcf_df \
     .select(cond + ['end'])
+updated_vcf_df = vcf_df.withColumn("start", F.col("start") + 1)
 
 if args.clinvar:
     clv = spark.read.format("delta") \
         .load("s3a://kf-strides-public-vwb-prd/clinvar") \
         .drop('end', 'filters')
-    vcf_df = vcf_df \
+    updated_vcf_df = updated_vcf_df \
         .join(clv, cond, 'left')
 
 if args.gnomad:
     gnomad_exomes_v2_1_1 = spark.read.format("delta") \
         .load("s3a://kf-strides-public-vwb-prd/gnomad_exomes_v2_1_1_liftover_grch38")
-    vcf_df = vcf_df \
+    updated_vcf_df = updated_vcf_df \
         .join(gnomad_exomes_v2_1_1, cond, 'left')
 
 output_file = args.output_basename + '.VWB_annotated.tsv.gz'
-vcf_df.toPandas() \
+updated_vcf_df.toPandas() \
     .to_csv(output_file, sep='\t', header=True, index=False, lineterminator='\n', compression='gzip')
