@@ -20,7 +20,7 @@ inputs:
 - id: spark_driver_mem
   doc: GB of RAM to allocate to this task
   type: int?
-  default: 10
+  default: 48
 - id: spark_executor_instance
   doc: number of instances used 
   type: int?
@@ -28,7 +28,7 @@ inputs:
 - id: spark_executor_mem
   doc: GB of executor memory
   type: int?
-  default: 15
+  default: 34
 - id: spark_executor_core
   doc: number of executor cores
   type: int?
